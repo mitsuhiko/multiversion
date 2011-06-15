@@ -64,15 +64,17 @@ def get_actual_module(name, stacklevel=1):
         return sys.modules[full_name]
 
 
-def require_version(library, version):
+def require_version(library, version, globals=None):
     """Has to be callde at toplevel before importing a module to notify
     the multiversion system about the version that should be loaded for
     this particular library.
     """
-    frm = sys._getframe(1)
-    if frm.f_globals is not frm.f_locals:
-        raise RuntimeError('version requirements must happen toplevel')
-    mapping = frm.f_globals.setdefault('__multiversion_mapping__', {})
+    if globals is None:
+        frm = sys._getframe(1)
+        if frm.f_globals is not frm.f_locals:
+            raise RuntimeError('version requirements must happen toplevel')
+        globals = frm.f_globals
+    mapping = globals.setdefault('__multiversion_mapping__', {})
     if library in mapping:
         raise RuntimeError('requirement already specified')
     mapping[library] = version
