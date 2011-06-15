@@ -44,6 +44,9 @@ def require_version(library, version):
 
 
 def version_from_module_name(module):
+    """Extracts the package and version information from the given internal
+    module name.  If it's not a versioned library it will return `None`.
+    """
     if not module.startswith(space.__name__ + '.'):
         return None
     result = module[len(space.__name__) + 1].split('.', 1)
@@ -52,6 +55,11 @@ def version_from_module_name(module):
 
 
 def get_cache_key(name, globals):
+    """Returns the cache key for the given module.  The globals dictionary
+    is required for the magic to work.  It's used as source for the package
+    name.  The cache key is in the format ``(package, version)``.  If the
+    given import is not versioned it will return `None`.
+    """
     mapping = globals.get('__multiversion_mapping__')
     if mapping is None:
         return
@@ -66,20 +74,26 @@ def get_cache_key(name, globals):
 
 
 def get_internal_name(cache_key):
+    """Converts a cache key into an internal space module name."""
     package, version = cache_key
     return 'multiversion.space.%s___%s' % (package, binascii.hexlify(version))
 
 
 def rewrite_import_name(name, cache_key):
+    """Rewrites a whole import line according to the cache key."""
     return '%s.%s' % (get_internal_name(cache_key), name)
 
 
 def version_not_loaded(cache_key):
+    """Checks if the given module and version was not loaded so far."""
     internal_name = get_internal_name(cache_key)
     return sys.modules.get(internal_name) is None
 
 
 def load_version(cache_key):
+    """Loads a version of a module.  Will raise `ImportError` if it fails
+    doing so.
+    """
     fs_name = '%s-%s' % cache_key
     internal_name = get_internal_name(cache_key)
     for path_entry in sys.path:
@@ -95,8 +109,12 @@ def load_version(cache_key):
 
 
 def version_import(name, globals=None, locals=None, fromlist=None, level=-1):
+    """An import hook that performs the versioned import.  It can't work
+    on the level of the regular import hooks as it's actually renaming
+    imports.
+    """
     if globals is None:
-        globals = {}
+        globals = sys._getframe(1).f_globals
     if locals is None:
         locals = {}
     if fromlist is None:
