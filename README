@@ -1,0 +1,50 @@
+
+  multiversion
+  ````````````
+
+  What many (including myself) said could not be done is now working on
+  any conforming Python 2.x interpreter.  How does it work?  Have a look
+  at the example module.
+
+  // Implementation
+  
+    The implementation works by rewriting import calls internally into an
+    version encoded name.  That way we can still take advantage of the
+    internal Python module caching.  The modules are found on the whole
+    PYTHONPATH by looking for ``modulename-version``.  If such a folder
+    exists it will add a fake module and provide whatever module is stored
+    in there versioned.
+
+    The rewriting is clever enough to track imports inside a module to
+    itself and its submodules.
+
+  // Limitations
+
+    The boundary is the current file.  So you can't have two different
+    versions of a library to be used by the same file.  But you can
+    separate the code into two files, each of which depends on a different
+    version of a specific library.
+
+  // Why?
+
+    Because I needed something for my EuroPython talk that involves all
+    kinds of retarded hackery you really shouldn't be doing.
+
+  // Does it work?
+
+    Surprisingly well actually.
+
+  // Example usage
+
+    The following code will look for Jinja2 in a folder `jinja2-1.0`
+    somewhere on the PYTHONPATH.  This folder will have to contain
+    another folder called `jinja2` which is the actual package to
+    be imported then.  Instead of a package it can also be a regular
+    Python module.
+
+      import multiversion
+      multiversion.require_version('jinja2', '1.0')
+
+      from jinja2 import Template
+      ...
+
