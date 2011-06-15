@@ -80,6 +80,10 @@ def require_version(library, version, globals=None):
     mapping[library] = version
 
 
+# shortcut :)
+require = require_version
+
+
 def version_from_module_name(module):
     """Extracts the package and version information from the given internal
     module name.  If it's not a versioned library it will return `None`.
