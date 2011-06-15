@@ -18,6 +18,8 @@ import os
 import sys
 import imp
 import binascii
+import weakref
+from types import ModuleType
 import __builtin__
 
 
@@ -26,7 +28,40 @@ actual_import = __builtin__.__import__
 
 space = imp.new_module('multiversion.space')
 space.__path__ = []
+
 sys.modules[space.__name__] = space
+
+
+class ModuleProxy(ModuleType):
+    """Used to proxy to an actual module.  This is needed because many
+    people do `__import__` + a lookup in sys.modules.
+    """
+
+    def __init__(self, name):
+        ModuleType.__init__(self, name)
+
+    def __getattr__(self, name):
+        mod = get_actual_module(self.__name__, stacklevel=2)
+        if mod is None:
+            raise AttributeError(name)
+        return getattr(mod, name)
+
+    def __setattr__(self, name, value):
+        mod = get_actual_module(self.__name__, stacklevel=2)
+        if mod is None:
+            raise AttributeError(name)
+        return setattr(mod, name, value)
+
+
+def get_actual_module(name, stacklevel=1):
+    """From the caller's view this returns the actual module that was
+    requested for a given name.
+    """
+    globals = sys._getframe(stacklevel).f_globals
+    cache_key = get_cache_key(name, globals)
+    if cache_key is not None:
+        full_name = '%s.%s' % (get_internal_name(cache_key), name)
+        return sys.modules[full_name]
 
 
 def require_version(library, version):
@@ -129,7 +164,17 @@ def version_import(name, globals=None, locals=None, fromlist=None, level=-1):
 
         if not fromlist:
             fromlist = ['__name__']
-    return actual_import(actual_name, globals, locals, fromlist, level)
+    rv = actual_import(actual_name, globals, locals, fromlist, level)
+    proxy = sys.modules.get(name)
+    if proxy is None:
+        rv.__multiversion_proxy__ = proxy = ModuleProxy(name)
+        def cleanup_proxy(ref):
+            try:
+                sys.modules.pop(name, None)
+            except (TypeError, AttributeError):
+                pass
+        sys.modules[name] = weakref.proxy(proxy, cleanup_proxy)
+    return rv
 
 
 __builtin__.__import__ = version_import
