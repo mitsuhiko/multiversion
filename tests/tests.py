@@ -20,6 +20,14 @@ class SimpleTestCase(unittest.TestCase):
 
         self.assert_('testlib' in sys.modules)
 
+    def test_naming(self):
+        import multiversion
+        import using_testlib_10 as v1
+        import using_testlib_20 as v2
+        prefix = multiversion.space.__name__ + '.'
+        self.assertEqual(v1.mod.__name__, prefix + 'testlib___312e30.testlib')
+        self.assertEqual(v2.mod.__name__, prefix + 'testlib___322e30.testlib')
+
     def test_proxy(self):
         # trigger proxy
         import using_testlib_10 as v1
